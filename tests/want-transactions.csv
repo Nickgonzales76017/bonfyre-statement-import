@@ -1,0 +1,4 @@
+date,description,amount,balance,currency,source_line
+2026-07-02,"COFFEE SHOP",-5.25,994.75,USD,5
+2026-07-05,"PAYROLL",125.00,1119.75,USD,6
+2026-07-09,"ELECTRIC BILL",-35.00,1084.75,USD,7

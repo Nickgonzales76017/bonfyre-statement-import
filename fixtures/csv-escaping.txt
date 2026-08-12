@@ -1,0 +1,4 @@
+DEMO BANK STATEMENT
+Opening balance: 100.00
+2026-07-02 COFFEE, "SPECIAL" -5.00 95.00
+Closing balance: 95.00

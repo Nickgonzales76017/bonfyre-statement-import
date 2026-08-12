@@ -1,0 +1,6 @@
+# Declarative recognition and boundary rules for the synthetic fixture.
+bank=Demo Bank
+identifier=DEMO BANK STATEMENT
+opening_prefix=Opening balance:
+closing_prefix=Closing balance:
+currency=USD

@@ -1,0 +1,4 @@
+DEMO BANK STATEMENT
+Opening balance: 100.00
+2026-07-02 IMPOSSIBLE ROW -5.00 96.00
+Closing balance: 96.00

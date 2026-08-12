@@ -1,0 +1,51 @@
+name: Statement Import Pack
+description: Request fit and scope confirmation for one bank/layout and one projection.
+title: "Statement Import Pack: "
+labels:
+  - commercial-pack
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Initial asking price: USD 750 for one bank/layout and one CSV or ERP projection. Do not attach statements, account numbers, credentials, or private financial data to this public issue.
+  - type: input
+    id: bank
+    attributes:
+      label: Public bank or statement family
+      placeholder: Public name only
+    validations:
+      required: true
+  - type: textarea
+    id: layout
+    attributes:
+      label: Redacted layout description
+      description: Describe date, description, amount, balance, and total placement without including real values.
+    validations:
+      required: true
+  - type: dropdown
+    id: projection
+    attributes:
+      label: Projection target
+      options:
+        - CSV
+        - JSON
+        - ERPNext import
+        - Other single ERP or ledger target
+    validations:
+      required: true
+  - type: textarea
+    id: reconciliation
+    attributes:
+      label: Required reconciliation rule
+      placeholder: Opening balance plus transactions must equal every running balance and the closing total.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Public submission boundary
+      options:
+        - label: I have not attached statements, account numbers, credentials, or private financial data.
+          required: true
+        - label: I understand work begins only after scope, secure fixture transfer, terms, and payment are agreed.
+          required: true
