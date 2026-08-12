@@ -128,6 +128,12 @@ static uint64_t fnv1a(uint64_t hash, const unsigned char *data, size_t length) {
     return hash;
 }
 
+static const char *filename_only(const char *path) {
+    const char *name = path;
+    for (const char *p = path; *p; p++) if (*p == '/' || *p == '\\') name = p + 1;
+    return name;
+}
+
 static void write_money(FILE *f, int64_t cents) {
     uint64_t n = cents < 0 ? (uint64_t)(-(cents + 1)) + 1 : (uint64_t)cents;
     if (cents < 0) fputc('-', f);
@@ -237,7 +243,7 @@ int main(int argc, char **argv) {
     }
     if (!failed && expected != closing) { fprintf(stderr, "closing balance mismatch\n"); failed = 1; }
     if (failed) { free(txs); return 1; }
-    int ok = write_csv(csv_path, txs, count, pack.currency) && write_receipt(receipt_path, &pack, input_path, checksum, bytes, count, opening, closing);
+    int ok = write_csv(csv_path, txs, count, pack.currency) && write_receipt(receipt_path, &pack, filename_only(input_path), checksum, bytes, count, opening, closing);
     if (ok) printf("verified %zu transactions for %s\n", count, pack.bank);
     free(txs);
     return ok ? 0 : 2;

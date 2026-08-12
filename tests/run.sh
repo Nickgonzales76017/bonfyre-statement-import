@@ -4,11 +4,16 @@ set -euo pipefail
 test_root=$(mktemp -d)
 trap 'rm -rf "$test_root"' EXIT
 
-./bonfyre-statement-import --pack packs/demo-bank.pack --input fixtures/demo-statement.txt --csv "$test_root/transactions.csv" --receipt "$test_root/receipt.json"
+./bonfyre-statement-import --pack packs/demo-bank.pack --input "$PWD/fixtures/demo-statement.txt" --csv "$test_root/transactions.csv" --receipt "$test_root/receipt.json"
 diff -u tests/want-transactions.csv "$test_root/transactions.csv"
 python3 -m json.tool "$test_root/receipt.json" >/dev/null
 grep -q '"transaction_count": 3' "$test_root/receipt.json"
 grep -q '"closing_total": true' "$test_root/receipt.json"
+grep -q '"source": "demo-statement.txt"' "$test_root/receipt.json"
+if grep -q "$PWD" "$test_root/receipt.json"; then
+  echo "receipt leaked the source directory" >&2
+  exit 1
+fi
 
 if ./bonfyre-statement-import --pack packs/demo-bank.pack --input fixtures/bad-balance.txt --csv "$test_root/bad.csv" --receipt "$test_root/bad.json" 2>"$test_root/bad.err"; then
   echo "bad balance fixture unexpectedly passed" >&2

@@ -22,7 +22,7 @@ Transaction rows use `YYYY-MM-DD DESCRIPTION SIGNED_AMOUNT RUNNING_BALANCE`. The
 
 ## Verification receipt
 
-Successful imports record the bank, currency, source path, byte count, non-cryptographic FNV-1a source checksum, transaction count, balances, and passed invariants. FNV-1a is an accidental-change checksum, not a cryptographic signature.
+Successful imports record the bank, currency, source filename (never its directory), byte count, non-cryptographic FNV-1a source checksum, transaction count, balances, and passed invariants. FNV-1a is an accidental-change checksum, not a cryptographic signature.
 
 ## Commercial use
 
