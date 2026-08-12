@@ -28,7 +28,7 @@ Successful imports record the bank, currency, source path, byte count, non-crypt
 
 The core is MIT licensed. Bonfyre offers a fixed-scope **Statement Import Pack** at an initial asking price of **$750 USD** for one bank/layout and one CSV or ERP import projection. Delivery includes a declarative pack, owner-authorized or synthetic fixtures, reconciliation tests, and a private/offline runbook. No private statement should be posted publicly.
 
-Start by opening an issue titled `Statement Import Pack` containing only the public bank/layout name, a redacted description of the text layout, the desired projection, and the required reconciliation rule. Scope, availability, secure fixture transfer, terms, and payment must be agreed before work begins.
+Start with the structured [Statement Import Pack intake](https://github.com/Nickgonzales76017/bonfyre-statement-import/issues/new?template=statement-import-pack.yml), containing only the public bank/layout name, a redacted description of the text layout, the desired projection, and the required reconciliation rule. Scope, availability, secure fixture transfer, terms, and payment must be agreed before work begins.
 
 ## Clean-room and license boundary
 
