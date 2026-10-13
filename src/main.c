@@ -205,8 +205,11 @@ int main(int argc, char **argv) {
     if (!load_pack(pack_path, &pack)) return 2;
     FILE *input = fopen(input_path, "rb");
     if (!input) { fprintf(stderr, "cannot open input %s: %s\n", input_path, strerror(errno)); return 2; }
-    Transaction *txs = calloc(MAX_TXNS, sizeof(*txs));
-    if (!txs) { fclose(input); return 2; }
+    /* Statements with a few rows need only a few Transaction slots, not
+     * an eager 10,000-row (~5 MiB) allocation. Retain the exact hard cap. */
+    Transaction *txs = NULL;
+    size_t capacity = 0;
+    int resource_failed = 0;
 
     char line[MAX_LINE]; size_t number = 0, count = 0, bytes = 0; uint64_t checksum = UINT64_C(14695981039346656037);
     int identified = 0, saw_opening = 0, saw_closing = 0, failed = 0; int64_t opening = 0, closing = 0;
@@ -225,6 +228,21 @@ int main(int argc, char **argv) {
         }
         if (iso_date(entry)) {
             if (count >= MAX_TXNS) { fprintf(stderr, "transaction limit exceeded\n"); failed = 1; break; }
+            if (count == capacity) {
+                size_t next = capacity ? capacity * 2 : 16;
+                if (next > MAX_TXNS) next = MAX_TXNS;
+                if (next < capacity || next > SIZE_MAX / sizeof(*txs)) {
+                    fprintf(stderr, "transaction capacity overflow\n");
+                    resource_failed = failed = 1; break;
+                }
+                Transaction *grown = realloc(txs, next * sizeof(*txs));
+                if (!grown) {
+                    fprintf(stderr, "cannot allocate transaction storage\n");
+                    resource_failed = failed = 1; break;
+                }
+                txs = grown;
+                capacity = next;
+            }
             int status = parse_transaction(entry, number, &txs[count]);
             if (status < 0) { fprintf(stderr, "invalid transaction at line %zu\n", number); failed = 1; break; }
             if (status > 0) count++;
@@ -242,7 +260,7 @@ int main(int argc, char **argv) {
         if (expected != txs[i].balance) { fprintf(stderr, "running balance mismatch at line %zu\n", txs[i].line); failed = 1; }
     }
     if (!failed && expected != closing) { fprintf(stderr, "closing balance mismatch\n"); failed = 1; }
-    if (failed) { free(txs); return 1; }
+    if (failed) { free(txs); return resource_failed ? 2 : 1; }
     int ok = write_csv(csv_path, txs, count, pack.currency) && write_receipt(receipt_path, &pack, filename_only(input_path), checksum, bytes, count, opening, closing);
     if (ok) printf("verified %zu transactions for %s\n", count, pack.bank);
     free(txs);
