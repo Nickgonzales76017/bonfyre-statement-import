@@ -138,4 +138,67 @@ cmp "$test_root/variable.baseline.json" "$test_root/variable.compact.json"
 
 echo "compact arena parity and failure boundaries passed"
 
+# Optional repeatable resource comparison. Run on the same synthetic 10,000-
+# transaction cohort, alternating baseline and compact so cache warmup is not
+# systematically assigned to one path. Metrics describe this runner only.
+if [[ "$(printenv BONFYRE_MEASURE_COMPACT 2>/dev/null || true)" == 1 ]]; then
+python3 - "$test_root" "$PWD/bonfyre-statement-import" "$PWD/packs/demo-bank.pack" <<'PY'
+import json
+import os
+from pathlib import Path
+import statistics
+import subprocess
+import sys
+import time
+
+root = Path(sys.argv[1])
+binary, pack = sys.argv[2:]
+statement = root / "growth-10000.txt"
+expected_csv = (root / "growth-10000.csv").read_bytes()
+expected_receipt = (root / "growth-10000.json").read_bytes()
+samples = {"default": [], "compact": []}
+
+for n in range(24):
+    order = ("default", "compact") if n % 2 == 0 else ("compact", "default")
+    for mode in order:
+        csv_path = root / f"profile-{mode}.csv"
+        receipt_path = root / f"profile-{mode}.json"
+        argv = [binary, "--pack", pack, "--input", str(statement),
+                "--csv", str(csv_path), "--receipt", str(receipt_path)]
+        if mode == "compact":
+            argv.append("--compact")
+        start = time.perf_counter_ns()
+        with subprocess.Popen(argv, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL) as child:
+            _, status, usage = os.wait4(child.pid, 0)
+            child.returncode = os.waitstatus_to_exitcode(status)
+        elapsed_ms = (time.perf_counter_ns() - start) / 1e6
+        if child.returncode != 0:
+            raise SystemExit(f"{mode} profile failed: {child.returncode}")
+        if csv_path.read_bytes() != expected_csv or receipt_path.read_bytes() != expected_receipt:
+            raise SystemExit(f"{mode} profile changed verified CSV or receipt bytes")
+        samples[mode].append({"wall_ms": elapsed_ms, "rss_kib": (
+            usage.ru_maxrss if sys.platform.startswith("linux")
+            else usage.ru_maxrss / 1024
+        )})
+        csv_path.unlink()
+        receipt_path.unlink()
+
+def summarize(mode):
+    return {
+        "runs": len(samples[mode]),
+        "median_wall_ms": round(statistics.median(x["wall_ms"] for x in samples[mode]), 3),
+        "median_peak_rss_kib": round(statistics.median(x["rss_kib"] for x in samples[mode]), 1),
+        "wall_ms_range": [round(min(x["wall_ms"] for x in samples[mode]), 3),
+                          round(max(x["wall_ms"] for x in samples[mode]), 3)],
+    }
+result = {"schema": "bonfyre.statement.compact-benchmark.v1",
+          "cohort": "synthetic_growth_10000", "environment": sys.platform,
+          "outputs_identical_each_run": True,
+          "default": summarize("default"), "compact": summarize("compact"),
+          "scope": "one CI host / one synthetic input; not a cross-machine performance envelope"}
+print(json.dumps(result, sort_keys=True))
+PY
+fi
+
 echo "statement import tests passed"
