@@ -31,4 +31,45 @@ if ./bonfyre-statement-import --pack packs/demo-bank.pack --input fixtures/wrong
 fi
 grep -q 'missing identifier' "$test_root/wrong.err"
 test ! -e "$test_root/wrong.csv"
+
+# Capacity boundaries: the same parser and 10,000-record hard limit, but
+# storage grows only for transactions that actually reach the parser.
+# These are synthetic bank statements, not user or customer financial data.
+python3 - "$test_root" <<'PY'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+for n in (1, 16, 17, 255, 10000, 10001):
+    def money(cents):
+        return f"{cents // 100}.{cents % 100:02d}"
+    lines = ["DEMO BANK STATEMENT", "Account: synthetic-001",
+             "Opening balance: $1,000.00"]
+    for i in range(1, n + 1):
+        lines.append(f"2026-07-02 ITEM-{i:05d} 0.01 {money(100000 + i)}")
+    lines.append(f"Closing balance: {money(100000 + n)}")
+    (root / f"growth-{n}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+for n in 1 16 17 255 10000; do
+  ./bonfyre-statement-import --pack packs/demo-bank.pack \
+    --input "$test_root/growth-$n.txt" \
+    --csv "$test_root/growth-$n.csv" \
+    --receipt "$test_root/growth-$n.json" >/dev/null
+  test "$(wc -l < "$test_root/growth-$n.csv" | tr -d ' ')" -eq "$((n+1))"
+  python3 - "$test_root/growth-$n.json" "$n" <<'PY'
+import json,sys
+with open(sys.argv[1],encoding="utf-8") as f: r=json.load(f)
+assert r["valid"] is True and r["transaction_count"] == int(sys.argv[2])
+assert r["invariants"] == {"running_balances":True,"closing_total":True}
+PY
+done
+if ./bonfyre-statement-import --pack packs/demo-bank.pack \
+    --input "$test_root/growth-10001.txt" \
+    --csv "$test_root/growth-overflow.csv" \
+    --receipt "$test_root/growth-overflow.json" 2>"$test_root/growth-overflow.err"; then
+  echo "10,001-record statement unexpectedly passed" >&2
+  exit 1
+fi
+grep -q 'transaction limit exceeded' "$test_root/growth-overflow.err"
+test ! -e "$test_root/growth-overflow.csv"
+
 echo "statement import tests passed"
