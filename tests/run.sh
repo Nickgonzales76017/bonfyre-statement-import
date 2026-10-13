@@ -147,7 +147,6 @@ import json
 import os
 from pathlib import Path
 import statistics
-import subprocess
 import sys
 import time
 
@@ -168,13 +167,18 @@ for n in range(24):
         if mode == "compact":
             argv.append("--compact")
         start = time.perf_counter_ns()
-        with subprocess.Popen(argv, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL) as child:
-            _, status, usage = os.wait4(child.pid, 0)
-            child.returncode = os.waitstatus_to_exitcode(status)
+        # posix_spawn avoids the Python interpreter's forked address space
+        # inflating native-process peak RSS before exec.
+        with open(os.devnull, "wb") as discard:
+            pid = os.posix_spawn(binary, argv, os.environ, file_actions=[
+                (os.POSIX_SPAWN_DUP2, discard.fileno(), 1),
+                (os.POSIX_SPAWN_DUP2, discard.fileno(), 2),
+            ])
+            _, status, usage = os.wait4(pid, 0)
         elapsed_ms = (time.perf_counter_ns() - start) / 1e6
-        if child.returncode != 0:
-            raise SystemExit(f"{mode} profile failed: {child.returncode}")
+        rc = os.waitstatus_to_exitcode(status)
+        if rc != 0:
+            raise SystemExit(f"{mode} profile failed: {rc}")
         if csv_path.read_bytes() != expected_csv or receipt_path.read_bytes() != expected_receipt:
             raise SystemExit(f"{mode} profile changed verified CSV or receipt bytes")
         samples[mode].append({"wall_ms": elapsed_ms, "rss_kib": (
@@ -193,7 +197,7 @@ def summarize(mode):
                           round(max(x["wall_ms"] for x in samples[mode]), 3)],
     }
 result = {"schema": "bonfyre.statement.compact-benchmark.v1",
-          "cohort": "synthetic_growth_10000", "environment": sys.platform,
+          "cohort": "synthetic_growth_10000", "environment": sys.platform, "measurement": "posix_spawn + wait4 (peak child RSS)",
           "outputs_identical_each_run": True,
           "default": summarize("default"), "compact": summarize("compact"),
           "scope": "one CI host / one synthetic input; not a cross-machine performance envelope"}
