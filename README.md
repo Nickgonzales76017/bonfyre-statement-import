@@ -27,8 +27,23 @@ The C test suite compares successful CSV and JSON receipts byte-for-byte across
 fixture sizes, longer descriptions and escaping, and verifies the same refusal
 behavior on invalid balances, unsupported banks and oversized statements.
 Compact storage reduces **reserved row-description capacity** for short
-descriptions; this is not a measured end-to-end RSS or runtime speedup.
-No customer statement or real bank pack is included.
+descriptions. A repeated Linux GitHub Actions measurement on **one synthetic
+10,000-row statement**, alternating 24 executions of each path, recorded:
+
+| Measure | Existing storage | `--compact` storage |
+|---|---:|---:|
+| Median peak native RSS | 7,016 KiB | 2,280 KiB |
+| Median elapsed time | 9.274 ms | 7.049 ms |
+
+Every invocation reproduced the same CSV and JSON receipt bytes. The benchmark
+measures direct monotonic wall time and the native child's peak resident memory
+using GNU `time`; the run and its raw results are available in
+[GitHub Actions](https://github.com/Nickgonzales76017/bonfyre-statement-import/actions/runs/38346957294).
+Reproduce on a Linux machine with `BONFYRE_MEASURE_COMPACT=1 make test`.
+
+**Scope:** one CI host and one synthetic cohort—not an end-to-end production
+throughput or real-bank performance guarantee. No customer statement or real
+bank pack is included.
 
 ## Text contract
 
